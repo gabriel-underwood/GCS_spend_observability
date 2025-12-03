@@ -8,7 +8,7 @@ WORKDIR /app
 COPY pom.xml .
 
 # Copy source code
-COPY *.java .
+COPY src ./src
 
 # Install Maven
 RUN apk add --no-cache maven
