@@ -1,6 +1,4 @@
-
-
-
+import com.google.cloud.ServiceOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,9 +6,9 @@ import org.junit.jupiter.api.BeforeEach;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+
+
 
 /**
  * Unit tests for BigQueryWriter.
@@ -21,7 +19,9 @@ class BigQueryWriterTest {
 
     @BeforeEach
     void setUp() {
-        writer = new BigQueryWriter("charged-atlas-465220-v8", "gcs_storage_costs", "bucket_snapshots");
+        // Get default project from gcloud configuration
+        String projectId = ServiceOptions.getDefaultProjectId();
+        writer = new BigQueryWriter(projectId, "gcs_storage_costs", "bucket_snapshots");
     }
 
 

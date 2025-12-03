@@ -1,3 +1,4 @@
+import com.google.cloud.ServiceOptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,11 +11,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class MetricsCollectorTest {
     private MetricsCollector collector;
 
-   private final String testBucketName = "charged-atlas-465220-v8-example-bucket-1";
-
     @BeforeEach
     void setUp() {
-        collector = new MetricsCollector("charged-atlas-465220-v8");
+        // Get default project from gcloud configuration
+        String projectId = ServiceOptions.getDefaultProjectId();
+        collector = new MetricsCollector(projectId);
     }
 
     @Test
