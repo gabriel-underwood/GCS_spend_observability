@@ -25,12 +25,8 @@ WORKDIR /app
 # Copy the uber JAR from build stage
 COPY --from=build /app/target/gcs-storage-metrics-1.0.0.jar app.jar
 
-# Set environment variables with defaults
-ENV PORT=8080
+# Set JVM options
 ENV JAVA_OPTS="-Xmx512m -Xms256m"
-
-# Expose port
-EXPOSE ${PORT}
 
 # Run the application
 ENTRYPOINT exec java ${JAVA_OPTS} -jar app.jar

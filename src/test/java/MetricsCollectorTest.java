@@ -30,7 +30,7 @@ public class MetricsCollectorTest {
             // See https://docs.cloud.google.com/monitoring/api/metrics_gcp_p_z#gcp-storage
             // "This value is measured once per day, and there might be a delay after measuring before the value
             // becomes available in Cloud Monitoring."
-            GcsTotalBytesMetric metric = metrics.get(0);
+            GcsTotalBytesMetric metric = metrics.getFirst();
             assertEquals(metric.gcpProjectId(),collector.getProjectId());
             assertTrue (metric.totalBytes() >0);
 

@@ -1,42 +1,57 @@
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
+
+import com.google.cloud.ServiceOptions;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
+
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Main entry point for the GCS Storage Metrics Cloud Run service.
- * Uses Java's built-in HTTP server without external frameworks.
+ * Modelled off the Google example code for a batch job at:
+ * <a href="https://docs.cloud.google.com/run/docs/quickstarts/jobs/build-create-java">...</a>
  */
 public class Main {
     
     private static final Logger LOGGER = Logger.getLogger(Main.class.getName());
-    private static final String PROJECT_ID = System.getenv("GCP_PROJECT_ID");
+
+    // For local testing in IDE, the default project Id is pulled from gcloud defaults
+    private static final String PROJECT_ID = System.getenv().getOrDefault("GCP_PROJECT_ID", ServiceOptions.getDefaultProjectId());
     private static final String DATASET_ID = 
         System.getenv().getOrDefault("BQ_DATASET_ID", "gcs_storage_costs");
     private static final String TABLE_ID = 
         System.getenv().getOrDefault("BQ_TABLE_ID", "bucket_snapshots");
-    private static final int PORT = Integer.parseInt(
-        System.getenv().getOrDefault("PORT", "8080"));
+
+    // These values are provided automatically by the Cloud Run Jobs runtime.
+    private static final String CLOUD_RUN_TASK_INDEX =
+            System.getenv().getOrDefault("CLOUD_RUN_TASK_INDEX", "0");
+    private static final String CLOUD_RUN_TASK_ATTEMPT =
+            System.getenv().getOrDefault("CLOUD_RUN_TASK_ATTEMPT", "0");
+
     
     public static void main(String[] args) throws IOException {
-        validateConfiguration();
-        
-        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
-        server.createContext("/", new MetricsHandler());
-        server.setExecutor(null); // Use default executor
-        server.start();
-        
-        LOGGER.info("Server started on port " + PORT);
+
+
+        LOGGER.info(
+                String.format(
+                        "Starting Task #%s, Attempt #%s...", CLOUD_RUN_TASK_INDEX, CLOUD_RUN_TASK_ATTEMPT));
         LOGGER.info("Project ID: " + PROJECT_ID);
         LOGGER.info("BigQuery Dataset: " + DATASET_ID);
         LOGGER.info("BigQuery Table: " + TABLE_ID);
+
+        try {
+            validateConfiguration();
+            processMetrics();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error processing metrics", e);
+            LOGGER.log(Level.SEVERE,
+                    String.format(
+                            "Task #%s, Attempt #%s failed.", CLOUD_RUN_TASK_INDEX, CLOUD_RUN_TASK_ATTEMPT));
+            // Catch error and denote process-level failure to retry Task
+            System.exit(1);
+        }
+
     }
     
     private static void validateConfiguration() {
@@ -46,61 +61,30 @@ public class Main {
         }
     }
     
-    /**
-     * HTTP request handler for metrics collection endpoint.
-     */
-    static class MetricsHandler implements HttpHandler {
+
         
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String method = exchange.getRequestMethod();
-            
-            // Cloud Scheduler uses POST, but accept GET for manual testing
-            if (!method.equals("POST") && !method.equals("GET")) {
-                sendResponse(exchange, 405, "Method not allowed");
-                return;
-            }
-            
-            try {
-                processMetrics();
-                sendResponse(exchange, 200, "Metrics processed successfully");
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Error processing metrics", e);
-                sendResponse(exchange, 500, "Error: " + e.getMessage());
-            }
+    private static void processMetrics() throws Exception {
+        LOGGER.info("Starting GCS storage metrics collection for project: "
+            + PROJECT_ID);
+
+        // Fetch metrics from Cloud Monitoring
+        MetricsCollector collector = new MetricsCollector(PROJECT_ID);
+        List<GcsTotalBytesMetric> metrics = collector.collectMetrics();
+
+        if (metrics.isEmpty()) {
+            LOGGER.info("No metrics data found");
+            return;
         }
-        
-        private void processMetrics() throws Exception {
-            LOGGER.info("Starting GCS storage metrics collection for project: " 
-                + PROJECT_ID);
-            
-            // Fetch metrics from Cloud Monitoring
-            MetricsCollector collector = new MetricsCollector(PROJECT_ID);
-            List<GcsTotalBytesMetric> metrics = collector.collectMetrics();
-            
-            if (metrics.isEmpty()) {
-                LOGGER.info("No metrics data found");
-                return;
-            }
-            
-            LOGGER.info("Retrieved " + metrics.size() + " metric records");
-            
-            // Write to BigQuery
-            BigQueryWriter writer = new BigQueryWriter(PROJECT_ID, DATASET_ID, TABLE_ID);
-            writer.writeMetrics(metrics);
-            
-            LOGGER.info("Successfully processed " + metrics.size() + " records");
-        }
-        
-        private void sendResponse(HttpExchange exchange, int statusCode, 
-                                 String message) throws IOException {
-            byte[] response = message.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "text/plain");
-            exchange.sendResponseHeaders(statusCode, response.length);
-            
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(response);
-            }
-        }
+
+        LOGGER.info("Retrieved " + metrics.size() + " metric records");
+
+        // Write to BigQuery
+        BigQueryWriter writer = new BigQueryWriter(PROJECT_ID, DATASET_ID, TABLE_ID);
+        writer.writeMetrics(metrics);
+
+        LOGGER.info("Successfully processed " + metrics.size() + " records");
     }
+        
+
+
 }
