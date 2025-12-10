@@ -1,5 +1,5 @@
-# Use Eclipse Temurin JDK 25 (OpenJDK distribution)
-FROM eclipse-temurin:21-jdk-alpine AS build
+# Use Eclipse Temurin JDK (Debian-based for glibc compatibility)
+FROM eclipse-temurin:21-jdk AS build
 
 # Set working directory
 WORKDIR /app
@@ -11,13 +11,13 @@ COPY pom.xml .
 COPY src ./src
 
 # Install Maven
-RUN apk add --no-cache maven
+RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
 
 # Build the application
 RUN mvn clean package -DskipTests
 
 # Runtime stage - use JRE for smaller image
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre
 
 # Set working directory
 WORKDIR /app

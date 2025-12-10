@@ -75,12 +75,11 @@ public class MetricsCollector {
     
     private void processTimeSeries(TimeSeries timeSeries, List<GcsTotalBytesMetric> metrics) {
         // Extract labels
-        String bucketName = timeSeries.getResource()
-            .getLabelsOrDefault("bucket_name", "unknown");
-        String region = timeSeries.getResource()
-            .getLabelsOrDefault("location", "unknown");
-        String storageClass = timeSeries.getMetric()
-            .getLabelsOrDefault("storage_class", "unknown");
+
+        String projectId = timeSeries.getResource().getLabelsOrDefault("project_id", "unknown");
+        String bucketName = timeSeries.getResource().getLabelsOrDefault("bucket_name", "unknown");
+        String region = timeSeries.getResource().getLabelsOrDefault("location", "unknown");
+        String storageClass = timeSeries.getMetric().getLabelsOrDefault("storage_class", "unknown");
         
         // Get the most recent point
         if (!timeSeries.getPointsList().isEmpty()) {
