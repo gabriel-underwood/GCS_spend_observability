@@ -200,7 +200,10 @@ java -jar target/gcs-storage-metrics-1.0.0.jar
 
 ## Querying Data
 
-Example BigQuery queries:
+See the script `./scripts/join-metrics-to-costs.sql` for building timeseries of costs by bucket, 
+joining the Cloud Metrics bucket snapshots with the Cloud Billing pricing export. 
+
+Simple example BigQuery queries:
 
 ```sql
 -- Latest snapshot per bucket
@@ -223,6 +226,7 @@ FROM `your-project.gcs_storage_costs.bucket_snapshots`
 GROUP BY date, bucket_name
 ORDER BY date DESC, avg_gb DESC;
 ```
+
 
 ## Troubleshooting
 

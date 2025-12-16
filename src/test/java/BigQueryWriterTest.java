@@ -35,7 +35,7 @@ class BigQueryWriterTest {
                 "us-central1",
                 "my-project",
                 "my-bucket",
-                "STANDARD",
+                "ARCHIVE",
                 1048576.0
         );
 
